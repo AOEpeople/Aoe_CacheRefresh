@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<config>
+
+    <modules>
+        <Aoe_CacheRefresh>
+            <version>0.0.1</version>
+        </Aoe_CacheRefresh>
+    </modules>
+
+    <global>
+        <models>
+            <Aoe_CacheRefresh>
+                <class>Aoe_CacheRefresh_Model</class>
+            </Aoe_CacheRefresh>
+
+            <!-- This has no effect since at the time Mage_Core_Model_App is instantiating the cache this configuration isn't loaded -->
+            <!-- instead this is added in app/etc/Aoe_CacheRefresh.xml -->
+            <!-- <core>
+                <rewrite>
+                    <cache>Aoe_CacheRefresh_Model_Cache</cache>
+                </rewrite>
+            </core> -->
+
+        </models>
+    </global>
+
+</config>

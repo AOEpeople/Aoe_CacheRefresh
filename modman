@@ -1,0 +1,3 @@
+app/code/community/Aoe/CacheRefresh/
+app/etc/modules/Aoe_CacheRefresh.xml
+app/etc/Aoe_CacheRefresh.xml
