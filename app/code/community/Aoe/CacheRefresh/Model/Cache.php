@@ -10,7 +10,17 @@ class Aoe_CacheRefresh_Model_Cache extends Mage_Core_Model_Cache {
     /**
      * @var bool
      */
-    protected $bypassCacheLoad;
+    protected $noCacheHeaderAndIp;
+
+    /**
+     * @var bool
+     */
+    protected $cacheRefreshDebug = false;
+
+    /**
+     * @var string
+     */
+    protected $debugLogfile = '/tmp/cacherefresh.log';
 
     /**
      * Overwrite original load method in order to bypass it
@@ -20,7 +30,10 @@ class Aoe_CacheRefresh_Model_Cache extends Mage_Core_Model_Cache {
      */
     public function load($id)
     {
-        return $this->bypassCacheLoad() ? false : parent::load($id);
+        $this->debugLog("Requested id: $id\n");
+        $bypass = $this->checkNoCacheHeaderAndIp() && $this->checkWhitelistAndBlacklist($id);
+        $this->debugLog("Bypassed: ".($bypass?"yes":"no")."\n\n");
+        return $bypass ? false : parent::load($id);
     }
 
     /**
@@ -29,19 +42,46 @@ class Aoe_CacheRefresh_Model_Cache extends Mage_Core_Model_Cache {
      * @return bool
      * @throws Zend_Controller_Request_Exception
      */
-    protected function bypassCacheLoad()
+    protected function checkNoCacheHeaderAndIp()
     {
-        if (is_null($this->bypassCacheLoad)) {
-            $this->bypassCacheLoad = false;
+        if (is_null($this->noCacheHeaderAndIp)) {
+            $this->noCacheHeaderAndIp = false;
             if (strstr(strtolower(Mage::app()->getRequest()->getHeader('PRAGMA')), 'no-cache') ||
                 strstr(strtolower(Mage::app()->getRequest()->getHeader('CACHE_CONTROL')), 'no-cache')
             ) {
+                $this->debugLog("Detected no-cache header\n");
                 if ($this->checkIp()) {
-                    $this->bypassCacheLoad = true;
+                    $this->debugLog("IP address ok\n");
+                    $this->noCacheHeaderAndIp = true;
                 }
             }
         }
-        return $this->bypassCacheLoad;
+        return $this->noCacheHeaderAndIp;
+    }
+
+    /**
+     * Check whitelist and blacklist if defined
+     *
+     * @param $id
+     * @return bool
+     * @throws Zend_Controller_Request_Exception
+     */
+    protected function checkWhitelistAndBlacklist($id)
+    {
+        if ($whitelist = Mage::app()->getRequest()->getHeader('X-CACHEREFRESH-WHITELIST')) {
+            if (!preg_match($whitelist, $id)) {
+                $this->debugLog("Whitelist detected, but id didn't match the whitelist: $whitelist\n");
+                return false;
+            }
+        }
+        if ($blacklist = Mage::app()->getRequest()->getHeader('X-CACHEREFRESH-BLACKLIST')) {
+
+            if (preg_match($blacklist, $id)) {
+                $this->debugLog("Blacklist detected, but id did match the blacklist: $blacklist\n");
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -62,6 +102,18 @@ class Aoe_CacheRefresh_Model_Cache extends Mage_Core_Model_Cache {
             }
         }
         return $allow;
+    }
+
+    /**
+     * Simple debug log
+     *
+     * @param $log
+     */
+    protected function debugLog($log) {
+        if ($this->cacheRefreshDebug) {
+            // Mage::log() isn't avaiable at this point...
+            file_put_contents($this->debugLogfile, $log, FILE_APPEND);
+        }
     }
 
 }

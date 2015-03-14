@@ -42,10 +42,51 @@ Add this to `app/etc/local.xml`
 
 ## Advanced usage
 
+### Blacklist and Whitelist
+
+By default all cache loading will be bypassed if the `PRAGMA`or the `CACHE_CONTROL` headers are set to `no_cache`. In addition to that you can
+control which caches are being bypassed more finegrained by defining a blacklist or a whitelist regex pattern:
+
+#### Example: Bypass all caches **except** all cache id that contain 'config' or 'layout' (so those will be loaded from cache as usual)
+
+```
+curl -H "PRAGMA: no-cache" -H "X-CACHEREFRESH-BLACKLIST: #.*(config|layout).*#i" -s -X GET -I http://www.example.com/examplepage
+```
+
+### Example: Only bypass a specific cache keys containing 'helloworld'
+
+```
+curl -H "PRAGMA: no-cache" -H "X-CACHEREFRESH-WHITELIST: #.*helloworld.*#i" -s -X GET -I http://www.example.com/examplepage
+```
+
+#### Limitation
+
+The whitelist and the blacklist pattern only work on cache keys, not cache tags. Since cache tags are not being used while loading content from the 
+cache this is not possible.
+
+If a whitelist and a blacklist are specified the the cache key has to match the whitelist pattern first and then also not match the blacklist pattern after that.
+
 ### Cache warming
 
 ```
-curl -H "Accept-Encoding: gzip, deflate" -H "Host: www.example.com" -H "HTTP_PRAGMA: no-cache" -s -X GET -I http://127.0.0.1/examplepage
+curl -H "PRAGMA: no-cache" -s -X GET -I http://www.example.com/examplepage
+```
+
+or indirectly (e.g. if the website is not accessible from outside at this point): 
+
+```
+curl -H "Host: www.example.com" -H "PRAGMA: no-cache" -s -X GET -I http://127.0.0.1/examplepage
 ```
 
 Find more advanced examples and code snippets in this (German) [blog post](http://www.webguys.de/magento/adventskalender/turchen-08-magento-cache-warming-und-weitere-caching-tricks/)
+
+Example:
+
+```
+for i in `n98-magerun.phar sys:url:list --add-all 1`; do curl -H "PRAGMA: no-cache" -s -X GET -I $i; done
+```
+
+### Debugging
+
+Since `Mage_Core_Model_Cache->load()` is being called very early in Magento's request lifecycle `Mage::log()` can't be used to debug any ids, ips, whitelists or blacklists.
+If you want to use the buildt-in (disabled by default) simple logging to a file temporarily set `Aoe_CacheRefresh_Model_Cache->cacheRefreshDebug = true`.
